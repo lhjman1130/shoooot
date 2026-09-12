@@ -638,6 +638,12 @@ mark{background:oklch(0.92 0.09 302);color:var(--accent-ink);border-radius:3px;p
 </style>
 </head>
 <body>
+<div class="offbar" id="offbar" role="status" hidden>
+  <span class="ico" aria-hidden="true">⚠</span>
+  <span class="msg">시트에 연결되지 않았어요 — 담은 건 이 브라우저에만 남고, 채널 정보·AI픽도 못 가져옵니다.</span>
+  <button class="ghost-btn" id="offbar-go" style="height:28px;font-size:12px">연결하기</button>
+</div>
+
 <div class="wrap">
 
   <header class="masthead" data-od-id="masthead">
@@ -739,12 +745,6 @@ mark{background:oklch(0.92 0.09 302);color:var(--accent-ink);border-radius:3px;p
   <button id="sel-clear">해제</button>
 </div>
 
-<div class="offbar" id="offbar" role="status" hidden>
-  <span class="ico" aria-hidden="true">⚠</span>
-  <span class="msg">시트에 연결되지 않았어요 — 담은 건 이 브라우저에만 남고, 채널 정보·AI픽도 못 가져옵니다.</span>
-  <button class="ghost-btn" id="offbar-go" style="height:28px;font-size:12px">연결하기</button>
-</div>
-
 <div class="toast" id="toast" role="status" aria-live="polite">
   <span id="toast-ico" aria-hidden="true"></span>
   <span id="toast-msg"></span>
@@ -793,7 +793,7 @@ const ICONS = {
 };
 
 /* ── 연결 설정 (설정 시트에서 입력 → localStorage) ── */
-const APP_BUILD = '2026-09-12.4';   /* 설정 하단에 표시된다 — 캐시 확인용 */
+const APP_BUILD = '2026-09-12.5';   /* 설정 하단에 표시된다 — 캐시 확인용 */
 const CFG = Object.assign(
   {apiUrl:'', sheetUrl:''},
   (()=>{ try{ return JSON.parse(localStorage.getItem('shooot.cfg')||'{}'); }catch{ return {}; } })()
