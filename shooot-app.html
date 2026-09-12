@@ -267,6 +267,14 @@ th,.errbox .ago,.slow,.subseg button .n{letter-spacing:.014em}
 .stats .st.up b{color:oklch(0.45 0.14 150)}
 .stats .st.when{background:transparent;border-color:transparent;padding-left:2px}
 .stats .st.when b{font-size:11px;color:var(--muted);font-weight:600}
+.offbar{
+  position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:10px;
+  padding:9px 16px;background:oklch(0.95 0.07 65);border-bottom:1px solid oklch(0.86 0.10 65);
+  color:oklch(0.42 0.12 55);font-size:12.5px;font-weight:600
+}
+.offbar .ico{font-size:14px}
+.offbar .msg{flex:1;min-width:0}
+@media (max-width:560px){.offbar{font-size:11.5px;padding:8px 12px}}
 .unsync{
   display:inline-flex;align-items:center;height:16px;padding:0 6px;margin-left:5px;
   border-radius:999px;background:oklch(0.94 0.06 22);color:var(--danger);
@@ -731,6 +739,12 @@ mark{background:oklch(0.92 0.09 302);color:var(--accent-ink);border-radius:3px;p
   <button id="sel-clear">해제</button>
 </div>
 
+<div class="offbar" id="offbar" role="status" hidden>
+  <span class="ico" aria-hidden="true">⚠</span>
+  <span class="msg">시트에 연결되지 않았어요 — 담은 건 이 브라우저에만 남고, 채널 정보·AI픽도 못 가져옵니다.</span>
+  <button class="ghost-btn" id="offbar-go" style="height:28px;font-size:12px">연결하기</button>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite">
   <span id="toast-ico" aria-hidden="true"></span>
   <span id="toast-msg"></span>
@@ -779,7 +793,7 @@ const ICONS = {
 };
 
 /* ── 연결 설정 (설정 시트에서 입력 → localStorage) ── */
-const APP_BUILD = '2026-09-12.3';   /* 설정 하단에 표시된다 — 캐시 확인용 */
+const APP_BUILD = '2026-09-12.4';   /* 설정 하단에 표시된다 — 캐시 확인용 */
 const CFG = Object.assign(
   {apiUrl:'', sheetUrl:''},
   (()=>{ try{ return JSON.parse(localStorage.getItem('shooot.cfg')||'{}'); }catch{ return {}; } })()
@@ -1200,6 +1214,7 @@ function renderShootSheet(){
           <p>${esc(d.channel || d.host)} · ${esc(d.kind)}${d.subs != null ? ` · 구독자 ${fmt(d.subs)}` : ''}${d.src==='mobile' ? ' · 모바일에서 보냄' : ''}
             ${d.metaState === 'loading' ? '<span class="aitag" style="margin-left:6px">불러오는 중…</span>' : ''}
             ${d.metaState === 'error' ? `<span class="aitag" style="margin-left:6px" title="${esc(d.metaErr||'')}">정보 못 가져옴</span>` : ''}
+            ${connected() ? '' : '<span class="unsync" style="margin-left:6px">연결 전 · 앱에만 저장돼요</span>'}
           </p>
         </span>
       </div>
@@ -1644,6 +1659,7 @@ function gridHTML(list){
         <span class="kind">${esc(r.kind)}</span>
       </div>
       <div class="card-body">
+        ${r.sid ? '' : `<p class="card-room"><span class="unsync">시트 미저장</span></p>`}
         <h3 class="card-title">${esc(r.t)}</h3>
         <p class="meta">${ICONS.people}<span class="num">${fmt(r.subs)}</span></p>
         ${statsHTML(r)}
@@ -2379,6 +2395,7 @@ function openSettings(){
             placeholder="https://docs.google.com/spreadsheets/d/…" value="${esc(CFG.sheetUrl)}">
           <div class="airow">
             <button class="ghost-btn" id="cfg-test">연결 테스트</button>
+            <button class="ghost-btn" id="cfg-share">다른 기기 연결 링크</button>
             ${CFG.sheetUrl ? `<a class="ghost-btn" href="${esc(CFG.sheetUrl)}" target="_blank" rel="noopener">시트 열기 ↗</a>` : ''}
             <span class="aitag" id="cfg-state" style="margin-left:0">${connected() ? 'URL 저장됨' : '연결 전 · 데모 모드'}</span>
           </div>
@@ -2456,6 +2473,7 @@ function openSettings(){
     CFG.sheetUrl = $('#cfg-sheet').value.trim();
     saveCfg();
     $('#cfg-state').textContent = connected() ? 'URL 저장됨' : '연결 전 · 데모 모드';
+    paintOffbar();
   };
   $('#cfg-api').addEventListener('change', persist);
   $('#cfg-sheet').addEventListener('change', persist);
@@ -2542,6 +2560,24 @@ function openSettings(){
       el.textContent = '저장 실패';
       toast('키 저장 실패 — ' + (e.message || e), true);
     }
+  });
+
+  $('#cfg-share').addEventListener('click', async () => {
+    persist();
+    if(!connected()){ toast('먼저 웹앱 URL을 넣어 주세요', true); return; }
+    const payload = btoa(unescape(encodeURIComponent(JSON.stringify({a:CFG.apiUrl, s:CFG.sheetUrl||''}))))
+      .replace(/\+/g,'-').replace(/\//g,'_');
+    const link = location.origin + location.pathname + '?setup=' + payload;
+    let copied = false;
+    try{ await navigator.clipboard.writeText(link); copied = true; }catch{}
+    askInfo({
+      title:'다른 기기 연결 링크',
+      desc: copied ? '복사했어요 — 폰에서 이 주소를 열면 바로 연결됩니다' : '이 주소를 폰에서 열면 바로 연결됩니다',
+      body:`<p style="font-family:var(--mono);font-size:11px;line-height:1.6;word-break:break-all;
+             background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px">${esc(link)}</p>
+        <p class="help" style="margin-top:10px">이 링크에는 <b>웹앱 주소가 들어 있습니다.</b>
+        아무한테나 보내지 마세요 — 받은 사람이 당신 시트에 쓸 수 있습니다.</p>`
+    });
   });
 
   $('#cfg-mobile').addEventListener('click', () => askInfo({
@@ -2674,12 +2710,38 @@ document.addEventListener('keydown', e => {
 /* 부팅 */
 $('#btn-add').addEventListener('click', askLink);
 
+/* 연결 상태 띠 */
+function paintOffbar(){
+  const bar = $('#offbar');
+  if(!bar) return;
+  bar.hidden = connected();
+}
+$('#offbar-go')?.addEventListener('click', () => { openSettings(); });
+
 /* PWA 등록 — https 로 올렸을 때만. sw.js 는 루트에 있어야 앱 전체가 스코프에 들어간다 */
 if('serviceWorker' in navigator && location.protocol === 'https:'){
   navigator.serviceWorker.register('sw.js', {scope:'./'}).catch(()=>{});
 }
 
 loadState();
+
+/* 다른 기기 연결: ?setup=<base64> 로 열면 웹앱 URL을 자동으로 넣는다.
+   기기마다 ⚙에 손으로 붙여넣지 않아도 된다. */
+(function receiveSetup(){
+  const p = new URLSearchParams(location.search);
+  const raw = p.get('setup');
+  if(!raw) return;
+  try{
+    const cfg = JSON.parse(decodeURIComponent(escape(atob(raw.replace(/-/g,'+').replace(/_/g,'/')))));
+    if(cfg.a) CFG.apiUrl = cfg.a;
+    if(cfg.s) CFG.sheetUrl = cfg.s;
+    saveCfg();
+    try{ history.replaceState(null, '', location.pathname); }catch{}
+    setTimeout(()=>toast('이 기기를 시트에 연결했어요'), 400);
+  }catch(e){
+    setTimeout(()=>toast('연결 링크를 읽지 못했어요', true), 400);
+  }
+})();
 
 /* 모바일 공유 수신: ?url= / ?text= → 임시저장 */
 (function receiveShare(){
@@ -2814,6 +2876,7 @@ renderGroups();
 renderRecent();
 renderSearchBody();
 setTab('shoot');
+paintOffbar();
 bootSync();
 })();
 </script>
