@@ -793,7 +793,7 @@ const ICONS = {
 };
 
 /* ── 연결 설정 (설정 시트에서 입력 → localStorage) ── */
-const APP_BUILD = '2026-09-12.5';   /* 설정 하단에 표시된다 — 캐시 확인용 */
+const APP_BUILD = '2026-09-12.6';   /* 설정 하단에 표시된다 — 캐시 확인용 */
 const CFG = Object.assign(
   {apiUrl:'', sheetUrl:''},
   (()=>{ try{ return JSON.parse(localStorage.getItem('shooot.cfg')||'{}'); }catch{ return {}; } })()
@@ -2509,9 +2509,11 @@ function openSettings(){
     paintSync();
   });
   $('#sync-pull').addEventListener('click', () => askConfirm({
-    title:'시트 기준으로 덮어쓸까요?',
-    desc:'앱에만 있고 아직 시트에 못 올린 것은 남고, 나머지는 시트 내용으로 바뀝니다. 시트에서 고친 제목·이유·방이 앱에 반영돼요.',
-    ok:'덮어쓰기', danger:true,
+    title:'시트와 똑같이 맞출까요?',
+    desc: unsyncedCount()
+      ? `앱에만 있고 시트에 없는 ${unsyncedCount()}개가 사라집니다. 남기려면 취소하고 먼저 "지금 맞추기"를 누르세요.`
+      : '시트에서 고친 제목·이유·방이 앱에 반영되고, 시트에 없는 것은 앱에서도 사라집니다.',
+    ok:'시트와 똑같이', danger:true,
     async onOk(){
       $('#sync-state').textContent = '불러오는 중…';
       await syncNow({replace:true});
