@@ -779,6 +779,7 @@ const ICONS = {
 };
 
 /* ── 연결 설정 (설정 시트에서 입력 → localStorage) ── */
+const APP_BUILD = '2026-09-12.3';   /* 설정 하단에 표시된다 — 캐시 확인용 */
 const CFG = Object.assign(
   {apiUrl:'', sheetUrl:''},
   (()=>{ try{ return JSON.parse(localStorage.getItem('shooot.cfg')||'{}'); }catch{ return {}; } })()
@@ -2427,6 +2428,10 @@ function openSettings(){
         <div><p class="t">모바일 공유 연결</p><p class="d">유튜브 공유 → shoooot으로 보내기 → 임시저장</p></div>
         <div class="right"><button class="ghost-btn" id="cfg-mobile">방법 보기</button></div>
       </div>
+      <p class="help" style="margin:10px 2px 0;font-family:var(--mono);font-size:11px">
+        앱 버전 ${APP_BUILD} · 데이터는 <b>${esc(location.host || '이 파일')}</b> 에만 저장돼요
+        <br>주소가 다르면 저장된 것도 다릅니다 — 기기끼리 맞추려면 같은 주소로 여세요.
+      </p>
       <div class="row-actions">
         <button class="btn quiet" id="set-export">CSV로 내보내기</button>
         <button class="btn push" id="set-done">완료</button>

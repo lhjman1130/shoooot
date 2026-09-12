@@ -1,6 +1,6 @@
 /* shoooot — 설치 조건을 만족시키기 위한 최소 서비스워커.
    캐시를 적극적으로 하지 않는다. 앱이 늘 최신이어야 하고, 저장은 어차피 네트워크가 필요하다. */
-const SHELL = 'shoooot-shell-v2';
+const SHELL = 'shoooot-shell-2026-09-12-3';
 const SHELL_FILES = ["./shooot-app.html", "./mobile/manifest.webmanifest", "./mobile/icons/icon-192.png"];
 
 self.addEventListener('install', (e) => {
