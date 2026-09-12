@@ -793,7 +793,7 @@ const ICONS = {
 };
 
 /* ── 연결 설정 (설정 시트에서 입력 → localStorage) ── */
-const APP_BUILD = '2026-09-12.7';   /* 설정 하단에 표시된다 — 캐시 확인용 */
+const APP_BUILD = '2026-09-12.8';   /* 설정 하단에 표시된다 — 캐시 확인용 */
 const CFG = Object.assign(
   {apiUrl:'', sheetUrl:''},
   (()=>{ try{ return JSON.parse(localStorage.getItem('shooot.cfg')||'{}'); }catch{ return {}; } })()
@@ -2405,10 +2405,11 @@ function openSettings(){
       <div class="setrow" id="set-sync" style="align-items:flex-start">
         <div style="flex:1;min-width:0">
           <p class="t">시트와 맞추기</p>
-          <p class="d">아직 못 올린 것을 올리고, 시트 내용을 내려받아요. 보관함의 <b>새로고침</b>과 같은 동작이에요.</p>
+          <p class="d"><b>지금 맞추기</b> — 못 올린 걸 올리고 시트를 내려받아요(보관함 새로고침과 같음).<br>
+          <b>시트와 똑같이 맞추기</b> — 시트에 없는 건 앱에서도 지워요.</p>
           <div class="airow">
             <button class="ghost-btn" id="sync-now">지금 맞추기</button>
-            <button class="ghost-btn" id="sync-pull">시트 기준으로 덮어쓰기</button>
+            <button class="ghost-btn" id="sync-pull">시트와 똑같이 맞추기</button>
             <span class="aitag" id="sync-state" style="margin-left:0"></span>
           </div>
         </div>
@@ -2475,6 +2476,8 @@ function openSettings(){
     saveCfg();
     $('#cfg-state').textContent = connected() ? 'URL 저장됨' : '연결 전 · 데모 모드';
     paintOffbar();
+    paintSync();
+    refreshKeyState();
   };
   $('#cfg-api').addEventListener('change', persist);
   $('#cfg-sheet').addEventListener('change', persist);
