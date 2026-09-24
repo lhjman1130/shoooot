@@ -1038,8 +1038,9 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-const APP_VER = '3.1';
+const APP_VER = '3.2';
 const CHANGELOG = [
+  {v:'3.2', d:'2026-09-24', items:['v2에서 이 브라우저에만 있던 방·레퍼를 켤 때 자동으로 시트에 올림(더하기만)']},
   {v:'3.1', d:'2026-09-24', items:['보관함 펼쳐 보기: 국가를 맨 위 탭(한국 · 미국 …)으로 — 스크롤 없이 나라를 골라 보기']},
   {v:'3.0', d:'2026-09-24', items:[
     '메인 화면 모드 5가지 — 사이드바(기본)·클래식·칸반·리스트·농구코트, 설정에서 바꾸기',
@@ -3374,10 +3375,53 @@ async function bootSync(){
     S.loaded = true; S.libError = false;
     if(!firstGroup || (firstGroup !== 'fav' && firstGroup !== 'inbox' && !groupOf(firstGroup))) S.group = null;
     renderAfterSync();
+    importFromV2();
   }catch(e){
     S.libError = true;
     toast('시트를 불러오지 못했어요 — 이 기기에 있던 것만 보여요: ' + e.message, true);
   }finally{ S.libLoading = false; paintOffbar(); }
+}
+
+/* v2 가 이 브라우저에만 갖고 있던 것(시트에 없는 방·레퍼)을 시트로 올린다 — 더하기만, 지우거나 고치지 않음 */
+async function importFromV2(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem('shooot.data') || 'null'); }catch{ return; }
+  if(!d || !Array.isArray(d.rooms)) return;
+  let done = {};
+  try{ done = JSON.parse(localStorage.getItem('shoooot3.v2import') || '{}'); }catch{}
+  const key = (g, n) => g + '\u0000' + n;
+  const rooms = [], refs = [];
+  d.rooms.forEach(r => {
+    if(!groupOf(r.g) || !r.name) return;
+    const k = key(r.g, r.name);
+    if(!ROOMS.some(x => x.g === r.g && x.name === r.name) && !done[k]) rooms.push(r);
+    (r.refs || []).forEach(x => {
+      if(x.sid || !x.u || done['ref:' + x.id]) return;
+      const here = ROOMS.find(y => y.g === r.g && y.name === r.name);
+      if(here && here.refs.some(y => y.u === x.u)) return;       /* 이미 시트에 같은 링크 */
+      refs.push({room:r, x});
+    });
+  });
+  if(!rooms.length && !refs.length) return;
+  let ok = 0, fail = 0;
+  for(const r of rooms){
+    try{
+      await api('roomUpsert', {g:r.g, name:r.name, color:r.color, glyph:r.glyph});
+      ROOMS.push({id:nid('n'), g:r.g, name:r.name, color:COLORS[r.color] ? r.color : colorFor(r.name), glyph:GLYPHS[r.glyph] ? r.glyph : 'play', fav:false, order:null, refs:[]});
+      done[key(r.g, r.name)] = 1; ok++;
+    }catch{ fail++; }
+  }
+  for(const {room, x} of refs){
+    try{
+      await api('save', {row:{group:room.g, room:room.name, title:x.t, kind:x.kind, channel:x.ch, subs:x.subs, why:x.note, ai:x.ai || '',
+        url:x.u, src:x.src || 'pc', glyph:room.glyph, color:room.color, savedAt:x.d || '', lite:true}});
+      done['ref:' + x.id] = 1; ok++;
+    }catch{ fail++; }
+  }
+  try{ localStorage.setItem('shoooot3.v2import', JSON.stringify(done)); }catch{}
+  saveState();
+  if(refs.length) await syncNow({quiet:true}); else renderAfterSync();
+  toast(`v2에만 있던 것 ${ok}개(방 ${rooms.length} · 레퍼 ${refs.length})를 시트로 올렸어요` + (fail ? ` · 실패 ${fail}개 — 다음에 켤 때 다시 시도` : ''), fail > 0);
 }
 
 /* ═══════ 전역: 닫기 · 포커스 · 연결 띠 ═══════ */
