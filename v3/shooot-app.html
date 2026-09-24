@@ -945,6 +945,11 @@ details.more summary{cursor:pointer;font-weight:800;font-size:13px;color:var(--m
 /* 칸반 줄은 .slot 규칙(세로 가운데 정렬)을 덮는다 */
 .kcol .krow.slot{flex-direction:row;justify-content:flex-start;align-items:center;gap:9px}
 .kcol .krow.slot .tile{width:30px;height:30px}
+/* 보관함 펼쳐 보기 — 국가 탭 */
+.ctabs{position:sticky;top:8px;z-index:20;width:fit-content;max-width:100%;margin-bottom:6px;box-shadow:var(--sh-1)}
+.ctabs .gbtn{width:auto}
+.ctabs .gbtn .ccode{margin-right:2px}
+@media (max-width:760px){body.m-sidebar .ctabs{top:118px}}
 
 </style>
 </head>
@@ -1033,8 +1038,9 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-const APP_VER = '3.0';
+const APP_VER = '3.1';
 const CHANGELOG = [
+  {v:'3.1', d:'2026-09-24', items:['보관함 펼쳐 보기: 국가를 맨 위 탭(한국 · 미국 …)으로 — 스크롤 없이 나라를 골라 보기']},
   {v:'3.0', d:'2026-09-24', items:[
     '메인 화면 모드 5가지 — 사이드바(기본)·클래식·칸반·리스트·농구코트, 설정에서 바꾸기',
     '방 아이콘: 한 번 누르면 열기, 더블클릭하면 복사한 링크 담기(여러 개면 묻지 않고 몽땅)',
@@ -1127,7 +1133,7 @@ let INBOX = [];      /* {id,url,t,host,kind,at,src,row,note} */
 let RISING = {criteria:{mult:2, recentH:24, baseDays:7, minVideo:1000, minChannel:100}, items:null, meta:null, at:0};
 const S = {
   tab:'shoot', group:null, openRoom:null, roomView:'grid', roomKind:'all', noReason:false, roomQuery:'', sort:'saved',
-  libView:'fold', libQ:'', libFold:{}, sel:new Set(), q:'', facet:{country:new Set(), kind:new Set(), room:new Set(), subs:'all', why:'all'},
+  libView:'fold', libCountry:null, libQ:'', libFold:{}, sel:new Set(), q:'', facet:{country:new Set(), kind:new Set(), room:new Set(), subs:'all', why:'all'},
   risingKind:'all', libLoading:false, libError:false, loaded:false, trashN:0, measure:false, ibxSel:new Set(),
   editing:null, draft:null,
   settings:{defaultView:'grid', dupWarn:true, mode:'sidebar'}
@@ -1147,7 +1153,7 @@ function saveState(){
     try{
       localStorage.setItem(DATA_KEY, JSON.stringify({
         v:3, seq:SEQ, groups:GROUPS, rooms:ROOMS, inbox:INBOX, settings:S.settings, group:S.group, sort:S.sort,
-        libView:S.libView, libFold:S.libFold, criteria:RISING.criteria
+        libView:S.libView, libCountry:S.libCountry, libFold:S.libFold, criteria:RISING.criteria
       }));
     }catch(e){ toast('브라우저 저장 공간이 가득 찼어요 — 설정에서 JSON으로 백업해 주세요', true); }
   }, 150);
@@ -1165,6 +1171,7 @@ function loadState(){
   if(d.sort) S.sort = d.sort;
   if(d.libView) S.libView = d.libView;
   if(d.libFold) S.libFold = d.libFold;
+  if(d.libCountry !== undefined) S.libCountry = d.libCountry;
   if(d.criteria) RISING.criteria = d.criteria;
   return true;
 }
@@ -2930,11 +2937,18 @@ function renderLibBody(){
     $$('[data-delroom]', el).forEach(b => b.addEventListener('click', () => deleteRoomById(b.dataset.delroom)));
     return;
   }
-  el.innerHTML = countries.map(([c, C]) => `
-    <div class="secthead"><span class="ccode">${esc(c||'??')}</span>${esc(ccName(c))}<span class="n">${C.n}</span><span class="line"></span></div>
+  /* 펼쳐 보기: 국가를 맨 위 탭으로 — 왼쪽부터 많은 순, 하나씩 골라 보기 */
+  if(!countries.some(([c]) => c === S.libCountry)) S.libCountry = countries[0][0];
+  const cur = countries.find(([c]) => c === S.libCountry);
+  const C = cur[1];
+  el.innerHTML = `
+    <div class="glist h ctabs" role="tablist" aria-label="국가">${countries.map(([c, X]) => `
+      <div class="gitem"><button class="gbtn" role="tab" data-cc="${esc(c)}" aria-selected="${c === S.libCountry}">
+        <span class="ccode">${esc(c||'??')}</span>${esc(ccName(c))}<span class="n">${X.n}</span></button></div>`).join('')}</div>
     ${[...C.kinds.entries()].sort((a,b) => a[0]==='채널' ? -1 : 1).map(([k, K]) => `
       <p class="subhead">${k} · ${[...K.values()].reduce((a,x)=>a+x.length,0)}</p>
-      <div class="cards">${[...K.values()].flat().map(r => cardHTML(r, r.room, true)).join('')}</div>`).join('')}`).join('');
+      <div class="cards">${[...K.values()].flat().map(r => cardHTML(r, r.room, true)).join('')}</div>`).join('')}`;
+  $$('[data-cc]', el).forEach(b => b.addEventListener('click', () => { S.libCountry = b.dataset.cc; saveState(); renderLibBody(); }));
   bindPicks(el); bindCardExtras(el); bindOpinions(el);
 }
 
