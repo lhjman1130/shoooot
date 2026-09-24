@@ -7,6 +7,8 @@
 <link rel="manifest" href="mobile/manifest.webmanifest">
 <meta name="theme-color" content="#7B5BE0">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="shoooot 3">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="mobile/icons/apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
@@ -1038,8 +1040,9 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-const APP_VER = '3.2';
+const APP_VER = '3.3';
 const CHANGELOG = [
+  {v:'3.3', d:'2026-09-24', items:['설치형(홈 화면 앱)에서 바로 연결 — 「연결 링크 붙여넣기」 버튼']},
   {v:'3.2', d:'2026-09-24', items:['v2에서 이 브라우저에만 있던 방·레퍼를 켤 때 자동으로 시트에 올림(더하기만)']},
   {v:'3.1', d:'2026-09-24', items:['보관함 펼쳐 보기: 국가를 맨 위 탭(한국 · 미국 …)으로 — 스크롤 없이 나라를 골라 보기']},
   {v:'3.0', d:'2026-09-24', items:[
@@ -3176,7 +3179,7 @@ function openSettings(){
         <input class="input" id="cfg-api" style="height:38px;font-size:12.5px;font-family:var(--mono)" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(CFG.apiUrl)}">
         <label for="cfg-sheet" style="margin-top:10px">스프레드시트 URL</label>
         <input class="input" id="cfg-sheet" style="height:38px;font-size:12.5px;font-family:var(--mono)" placeholder="https://docs.google.com/spreadsheets/d/…" value="${esc(CFG.sheetUrl)}">
-        <div class="airow"><button class="ghost-btn" id="cfg-test">연결 테스트</button><button class="ghost-btn" id="cfg-share">다른 기기 연결 링크</button>
+        <div class="airow"><button class="ghost-btn" id="cfg-paste">연결 링크 붙여넣기</button><button class="ghost-btn" id="cfg-test">연결 테스트</button><button class="ghost-btn" id="cfg-share">다른 기기 연결 링크</button>
           <span class="aitag" id="cfg-state" style="margin-left:0">${connected() ? 'URL 저장됨' : '연결 전'}</span></div></div></div>
       <div class="setrow" style="align-items:flex-start"><div style="flex:1;min-width:0">
         <p class="t">시트와 맞추기</p><p class="d"><b>지금 맞추기</b> — 못 올린 걸 올리고 시트를 내려받아요(보관함 새로고침과 같음).</p>
@@ -3236,6 +3239,7 @@ function openSettings(){
       toast('스프레드시트에 연결됐어요'); bootSync();
     }catch(e){ el.textContent = '연결 실패'; toast('연결 실패 — ' + e.message, true); }
   });
+  $('#cfg-paste').addEventListener('click', () => { closeSettings(); askConnect(); });
   $('#sync-now').addEventListener('click', () => syncNow());
   $('#open-trash').addEventListener('click', () => { closeSettings(); openTrash(); });
   (async () => {
@@ -3454,13 +3458,37 @@ let offbarDismissed = false;
 function paintOffbar(){
   const bar = $('#offbar'); if(!bar) return;
   let msg = '';
-  if(!connected()) msg = '시트에 연결되지 않았어요 — 받은 연결 링크를 한 번 열거나 ⚙ 설정에서 v3 웹앱 주소를 넣어 주세요.';
+  if(!connected()) msg = '시트에 연결되지 않았어요 — [연결하기]를 누르고 메모에 적어 둔 연결 링크를 붙여넣어 주세요.';
   else if(S.libError) msg = '시트를 불러오지 못했어요 — 이 기기에 있던 것만 보여요. 보관함 › 새로고침으로 다시 시도하세요.';
   $('#offbar-msg').textContent = msg;
   bar.hidden = !msg || offbarDismissed;
 }
 $('#offbar-x').addEventListener('click', () => { offbarDismissed = true; paintOffbar(); });
-$('#offbar-go').addEventListener('click', () => { if(connected()) syncNow(); else openSettings(); });
+$('#offbar-go').addEventListener('click', () => { if(connected()) syncNow(); else askConnect(); });
+/* 연결 링크(…?setup=…)를 붙여넣어 연결 — 홈 화면에 설치한 앱은 사파리와 저장소가 따로라 여기서 한 번 더 연결해야 한다 */
+function applySetup(text){
+  const m = String(text||'').match(/setup=([A-Za-z0-9_\-+/=]+)/) || String(text||'').trim().match(/^([A-Za-z0-9_\-+/=]{40,})$/);
+  if(!m) return false;
+  try{
+    const cfg = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))));
+    if(!cfg.a) return false;
+    CFG.apiUrl = cfg.a; if(cfg.s) CFG.sheetUrl = cfg.s; saveCfg();
+    return true;
+  }catch{ return false; }
+}
+function askConnect(){
+  askShell('시트에 연결하기', '메모에 적어 둔 「연결 링크」를 통째로 복사해서 붙여넣어 주세요.', `
+    <div class="field"><label for="ask-setup">연결 링크</label>
+      <textarea class="input" id="ask-setup" style="min-height:90px;font-family:var(--mono);font-size:11.5px" placeholder="https://lhjman1130.github.io/shoooot/v3/shooot-app.html?setup=…"></textarea>
+      <p class="help" id="ask-setup-help">한 번만 하면 돼요. 이 링크는 다른 사람에게 보내지 마세요.</p></div>
+    <div class="row-actions"><button class="btn quiet push" id="ask-no">취소</button><button class="btn" id="ask-go">연결</button></div>`);
+  $('#ask-no').addEventListener('click', closeAsk);
+  $('#ask-go').addEventListener('click', () => {
+    if(!applySetup($('#ask-setup').value)){ const h = $('#ask-setup-help'); h.textContent = '연결 링크가 아니에요 — setup= 이 들어 있는 주소 전체를 붙여넣어 주세요.'; h.classList.add('err'); return; }
+    closeAsk(); paintOffbar(); toast('시트에 연결했어요 — 불러오는 중…'); bootSync();
+  });
+  setTimeout(()=>$('#ask-setup').focus(), 40);
+}
 
 /* ═══════ 부팅 ═══════ */
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', {scope:'./'}).catch(()=>{});
