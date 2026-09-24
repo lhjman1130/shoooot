@@ -1040,8 +1040,9 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-const APP_VER = '3.3';
+const APP_VER = '3.4';
 const CHANGELOG = [
+  {v:'3.4', d:'2026-09-25', items:['「앱으로 설치」 버튼 — 맥 크롬은 바로 설치 창, 아이폰·아이패드는 설치 방법 안내']},
   {v:'3.3', d:'2026-09-24', items:['설치형(홈 화면 앱)에서 바로 연결 — 「연결 링크 붙여넣기」 버튼']},
   {v:'3.2', d:'2026-09-24', items:['v2에서 이 브라우저에만 있던 방·레퍼를 켤 때 자동으로 시트에 올림(더하기만)']},
   {v:'3.1', d:'2026-09-24', items:['보관함 펼쳐 보기: 국가를 맨 위 탭(한국 · 미국 …)으로 — 스크롤 없이 나라를 골라 보기']},
@@ -1482,6 +1483,7 @@ function renderChrome(){
       <div class="label">그룹</div>
       ${groupListHTML('v')}
       <div class="foot">
+        ${installBtnHTML()}
         <button class="navbtn" data-act="trash">${ICONS.trash}휴지통<span style="margin-left:auto;font-family:var(--mono);font-size:11px;opacity:.7">${S.trashN||''}</span></button>
         <button class="navbtn" data-act="settings">${ICONS.gear}설정</button>
       </div>`;
@@ -1495,6 +1497,7 @@ function renderChrome(){
   }));
   $$('#side [data-act="settings"]').forEach(b => b.addEventListener('click', openSettings));
   $$('#side [data-act="trash"]').forEach(b => b.addEventListener('click', openTrash));
+  $$('[data-act="install"]').forEach(b => b.addEventListener('click', installApp));
 }
 function setTab(t){
   S.tab = t;
@@ -3194,6 +3197,7 @@ function openSettings(){
       <div class="setrow" style="align-items:flex-start"><div style="flex:1;min-width:0">
         <p class="t">내 데이터</p><p class="d">원본은 구글시트예요. 이 브라우저엔 빠른 표시용 사본만 있어요.</p>
         <div class="airow"><button class="ghost-btn" id="data-export">JSON 백업</button><button class="ghost-btn" id="set-export">CSV로 내보내기</button></div></div></div>
+      ${isStandalone() ? '' : `<div class="setrow"><div><p class="t">앱으로 설치</p><p class="d">독·홈 화면에서 앱처럼 열기</p></div><div class="right"><button class="ghost-btn" id="set-install">설치</button></div></div>`}
       <div class="setrow"><div><p class="t">버전 기록</p><p class="d">지금 v${APP_VER} · 무엇이 언제 바뀌었는지</p></div>
         <div class="right"><button class="ghost-btn" id="open-log">보기</button></div></div>
       <p class="help" style="margin:10px 2px 0;font-family:var(--mono);font-size:11px">shoooot v${APP_VER} · ${esc(location.host || '로컬 파일')}</p>
@@ -3240,6 +3244,7 @@ function openSettings(){
     }catch(e){ el.textContent = '연결 실패'; toast('연결 실패 — ' + e.message, true); }
   });
   $('#cfg-paste').addEventListener('click', () => { closeSettings(); askConnect(); });
+  $('#set-install')?.addEventListener('click', () => { closeSettings(); installApp(); });
   $('#sync-now').addEventListener('click', () => syncNow());
   $('#open-trash').addEventListener('click', () => { closeSettings(); openTrash(); });
   (async () => {
@@ -3489,6 +3494,27 @@ function askConnect(){
   });
   setTimeout(()=>$('#ask-setup').focus(), 40);
 }
+
+/* ═══════ 앱으로 설치 (PWA) ═══════ */
+let installEvt = null;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderChrome(); });
+window.addEventListener('appinstalled', () => { installEvt = null; renderChrome(); toast('설치했어요 — 독·런치패드에서 「shoooot 3」로 열 수 있어요'); });
+async function installApp(){
+  if(installEvt){
+    installEvt.prompt();
+    const r = await installEvt.userChoice.catch(() => null);
+    if(r && r.outcome === 'accepted') installEvt = null;
+    renderChrome();
+    return;
+  }
+  askInfo({title:'앱으로 설치', desc: isIOS ? '아이폰 · 아이패드' : '맥 · PC',
+    body: isIOS
+      ? `<ol style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.8"><li>사파리 아래(아이패드는 위) <b>공유 버튼(□↑)</b></li><li><b>홈 화면에 추가</b> → 추가</li><li>홈 화면의 <b>shoooot 3</b>로 열고 위의 <b>[연결하기]</b>에 메모의 연결 링크 붙여넣기</li></ol>`
+      : `<p style="font-size:13.5px;line-height:1.8">크롬 주소창 오른쪽 끝의 <b>설치 아이콘(⊕)</b>을 누르거나, 크롬 메뉴(⋮) › <b>전송, 저장, 공유</b> › <b>페이지를 앱으로 설치</b>를 누르세요.<br>이미 설치했다면 이 창을 닫고 독·런치패드의 <b>shoooot 3</b>로 여세요.</p>`});
+}
+const installBtnHTML = () => isStandalone() ? '' : `<button class="navbtn" data-act="install">${ICONS.plus}앱으로 설치</button>`;
 
 /* ═══════ 부팅 ═══════ */
 if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js', {scope:'./'}).catch(()=>{});
