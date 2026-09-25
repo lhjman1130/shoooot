@@ -1040,8 +1040,9 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-const APP_VER = '3.5';
+const APP_VER = '3.6';
 const CHANGELOG = [
+  {v:'3.6', d:'2026-09-25', items:['설정의 API 키 칸에 저장된 비밀번호가 자동으로 채워지지 않게 막음']},
   {v:'3.5', d:'2026-09-25', items:['맥 설치형 앱(shoooot 3.app) — 크롬 없이 혼자 뜨고, 방 더블클릭 담기가 확인 창 없이 됨']},
   {v:'3.4', d:'2026-09-25', items:['「앱으로 설치」 버튼 — 맥 크롬은 바로 설치 창, 아이폰·아이패드는 설치 방법 안내']},
   {v:'3.3', d:'2026-09-24', items:['설치형(홈 화면 앱)에서 바로 연결 — 「연결 링크 붙여넣기」 버튼']},
@@ -3191,9 +3192,9 @@ function openSettings(){
       <div class="setrow" style="align-items:flex-start"><div style="flex:1;min-width:0">
         <p class="t">API 키</p><p class="d">키는 이 브라우저에 남지 않아요 — 곧바로 Apps Script로 보내 거기에만 저장해요.</p>
         <label for="cfg-key-gemini" style="margin-top:12px">제미나이 키 <span class="optional">AI픽</span></label>
-        <input class="input" id="cfg-key-gemini" type="password" autocomplete="off" style="height:38px;font-size:12.5px;font-family:var(--mono)" placeholder="AIza…">
+        <input class="input" id="cfg-key-gemini" type="password" autocomplete="new-password" data-lpignore="true" style="height:38px;font-size:12.5px;font-family:var(--mono)" placeholder="AIza…">
         <label for="cfg-key-youtube" style="margin-top:10px">유튜브 Data API 키 <span class="optional">구독자·조회수·급상승</span></label>
-        <input class="input" id="cfg-key-youtube" type="password" autocomplete="off" style="height:38px;font-size:12.5px;font-family:var(--mono)" placeholder="AIza…">
+        <input class="input" id="cfg-key-youtube" type="password" autocomplete="new-password" data-lpignore="true" style="height:38px;font-size:12.5px;font-family:var(--mono)" placeholder="AIza…">
         <div class="airow"><button class="ghost-btn" id="cfg-key-save">키 저장</button><span class="aitag" id="cfg-key-state" style="margin-left:0">상태 확인 전</span></div></div></div>
       <div class="setrow" style="align-items:flex-start"><div style="flex:1;min-width:0">
         <p class="t">내 데이터</p><p class="d">원본은 구글시트예요. 이 브라우저엔 빠른 표시용 사본만 있어요.</p>
@@ -3256,6 +3257,9 @@ function openSettings(){
   $('#cfg-key-save').addEventListener('click', async () => {
     persist();
     const jobs = [['GEMINI_API_KEY', $('#cfg-key-gemini').value.trim()], ['YOUTUBE_API_KEY', $('#cfg-key-youtube').value.trim()]].filter(([,v]) => v);
+    /* 브라우저 자동완성(저장된 비밀번호)이 끼어들면 키가 망가진다 — 구글 키 모양(AIza…)만 받는다 */
+    const bad = jobs.filter(([,v]) => !/^AIza[\w-]{30,}$/.test(v));
+    if(bad.length){ toast('키 모양이 아니에요(AIza…로 시작해야 해요) — 자동완성된 비밀번호일 수 있어요. 칸을 지우고 키를 붙여넣어 주세요', true); return; }
     if(!jobs.length){ $('#cfg-key-state').textContent = '넣을 키가 없어요'; return; }
     try{
       for(const [name, value] of jobs) await api('setKey', {name, value});
