@@ -1040,8 +1040,9 @@ const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-const APP_VER = '3.4';
+const APP_VER = '3.5';
 const CHANGELOG = [
+  {v:'3.5', d:'2026-09-25', items:['맥 설치형 앱(shoooot 3.app) — 크롬 없이 혼자 뜨고, 방 더블클릭 담기가 확인 창 없이 됨']},
   {v:'3.4', d:'2026-09-25', items:['「앱으로 설치」 버튼 — 맥 크롬은 바로 설치 창, 아이폰·아이패드는 설치 방법 안내']},
   {v:'3.3', d:'2026-09-24', items:['설치형(홈 화면 앱)에서 바로 연결 — 「연결 링크 붙여넣기」 버튼']},
   {v:'3.2', d:'2026-09-24', items:['v2에서 이 브라우저에만 있던 방·레퍼를 켤 때 자동으로 시트에 올림(더하기만)']},
@@ -3497,7 +3498,7 @@ function askConnect(){
 
 /* ═══════ 앱으로 설치 (PWA) ═══════ */
 let installEvt = null;
-const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isStandalone = () => !!window.__SHOOOOT_NATIVE__ || matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; renderChrome(); });
 window.addEventListener('appinstalled', () => { installEvt = null; renderChrome(); toast('설치했어요 — 독·런치패드에서 「shoooot 3」로 열 수 있어요'); });
